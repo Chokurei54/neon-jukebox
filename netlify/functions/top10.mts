@@ -13,7 +13,7 @@ export default async (req: Request) => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: `Genera una classifica Top 10 di canzoni per jukebox basata sul tema: "${promptTheme}". Fornisci solo dati realistici di canzoni celebri o rilevanti. Per ciascun brano includi titolo, artista, una breve curiosità/descrizione e se possibile un link di YouTube verosimile (es: https://www.youtube.com/watch?v=...).`,
       config: {
         responseMimeType: "application/json",
