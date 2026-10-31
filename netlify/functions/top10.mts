@@ -37,6 +37,7 @@ export default async (req: Request) => {
     try { tracks = JSON.parse(response.text ?? "[]"); } catch {}
     return Response.json({ success: true, tracks });
   } catch (e: any) {
+    console.error("ERRORE GEMINI:", e);
     return Response.json({ success: false, error: e?.message || "Errore" }, { status: 500 });
   }
 };
