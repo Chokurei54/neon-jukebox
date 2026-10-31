@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { VideoTrack } from './types';
 import TrackItem from './components/TrackItem';
 import VideoPlayer from './components/VideoPlayer';
-import { getAIGeneratedTop10 } from './services/geminiService';
 
 const App: React.FC = () => {
   const emptyTracks = (): VideoTrack[] => Array.from({ length: 10 }, (_, i) => ({
@@ -23,8 +22,6 @@ const App: React.FC = () => {
 
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [editingTrack, setEditingTrack] = useState<VideoTrack | null>(null);
-  const [aiTheme, setAiTheme] = useState('Hits Italiane 2024');
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const getPw = () => localStorage.getItem('jukebox_admin_pw') || '';
 
@@ -121,29 +118,6 @@ const App: React.FC = () => {
     ));
   };
 
-  const handleMagicFill = async () => {
-    setIsGenerating(true);
-    try {
-      const suggestions = await getAIGeneratedTop10(aiTheme);
-      const newTracks = [...tracks];
-      suggestions.slice(0, 10).forEach((s, i) => {
-        newTracks[i] = {
-          ...newTracks[i],
-          title: s.title || newTracks[i].title || `Canzone ${i + 1}`,
-          artist: s.artist || newTracks[i].artist || 'Artista Ignoto',
-          description: s.description || '',
-          youtubeUrl: (s.youtubeUrl || '').trim()
-        };
-      });
-      changeTracks(() => newTracks);
-    } catch (err) {
-      console.error(err);
-      alert("Errore durante la generazione AI.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-pink-500/30">
       {/* Header */}
@@ -151,36 +125,11 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-pink-600 rounded-lg flex items-center justify-center font-retro text-xl font-black text-white shadow-lg shadow-pink-600/20">
-              J
+              H
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Neon <span className="text-pink-500">Jukebox</span></h1>
+            <h1 className="text-xl font-bold tracking-tight">Hit <span className="text-pink-500">Chokurei</span></h1>
           </div>
           
-          {isAdmin && (
-          <div className="flex items-center gap-2">
-            <input 
-              type="text" 
-              value={aiTheme}
-              onChange={(e) => setAiTheme(e.target.value)}
-              placeholder="Tema AI (es: Rock 90s)"
-              className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 w-48 md:w-64"
-            />
-            <button 
-              onClick={handleMagicFill}
-              disabled={isGenerating}
-              className="bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all shadow-lg shadow-pink-600/20 whitespace-nowrap"
-            >
-              {isGenerating ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                </svg>
-              )}
-              AI Classifica
-            </button>
-          </div>
-          )}
         </div>
       </header>
 
@@ -237,7 +186,7 @@ const App: React.FC = () => {
               ) : (
                 <div className="text-center py-12">
                    <h2 className="text-2xl font-bold text-slate-600">{isAdmin ? "Inizia la tua Top 10" : "Top 10 in arrivo"}</h2>
-                   <p className="text-slate-500">{isAdmin ? "Seleziona una posizione e incolla un link sopra, oppure usa l'AI in alto." : "La classifica non è ancora stata pubblicata."}</p>
+                   <p className="text-slate-500">{isAdmin ? "Seleziona una posizione e incolla un link sopra." : "La classifica non è ancora stata pubblicata."}</p>
                 </div>
               )}
             </div>
@@ -324,7 +273,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-800 py-8 px-4 text-center text-slate-500 text-sm">
-        <p>&copy; 2024 Neon Jukebox - Top 10 Video Ranking</p>
+        <p>&copy; Hit Chokurei - Top 10 Video Ranking</p>
         <div className="mt-3 text-xs text-slate-600 flex items-center justify-center gap-3">
           {isAdmin ? (
             <>
