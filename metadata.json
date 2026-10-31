@@ -1,0 +1,8 @@
+{
+  "name": "Neon Top 10 Jukebox",
+  "description": "A premium retro-modern jukebox for curating and playing your favorite Top 10 YouTube videos with AI-powered recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
