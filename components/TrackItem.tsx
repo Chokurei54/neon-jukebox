@@ -7,7 +7,7 @@ interface TrackItemProps {
   track: VideoTrack;
   isActive: boolean;
   onSelect: (track: VideoTrack) => void;
-  onEdit: (track: VideoTrack) => void;
+  onEdit?: (track: VideoTrack) => void;
 }
 
 const TrackItem: React.FC<TrackItemProps> = ({ track, isActive, onSelect, onEdit }) => {
@@ -32,14 +32,14 @@ const TrackItem: React.FC<TrackItemProps> = ({ track, isActive, onSelect, onEdit
         <p className="text-sm text-slate-400 truncate">{track.artist || "Sconosciuto"}</p>
       </div>
 
-      <button 
+      {onEdit && (<button 
         onClick={(e) => { e.stopPropagation(); onEdit(track); }}
         className="p-2 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
         </svg>
-      </button>
+      </button>)}
     </div>
   );
 };

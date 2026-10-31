@@ -5,6 +5,7 @@ export const getAIGeneratedTop10 = async (theme: string): Promise<Partial<VideoT
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-admin-password': localStorage.getItem('jukebox_admin_pw') || '',
     },
     body: JSON.stringify({ theme }),
   });

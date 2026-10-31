@@ -5,6 +5,10 @@ export default async (req: Request) => {
   if (req.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
+  const secret = process.env.ADMIN_PASSWORD;
+  if (!secret || req.headers.get("x-admin-password") !== secret) {
+    return Response.json({ error: "Non autorizzato" }, { status: 401 });
+  }
   try {
     const { theme } = await req.json();
     const promptTheme =

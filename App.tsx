@@ -6,39 +6,117 @@ import VideoPlayer from './components/VideoPlayer';
 import { getAIGeneratedTop10 } from './services/geminiService';
 
 const App: React.FC = () => {
-  const [tracks, setTracks] = useState<VideoTrack[]>(() => {
-    const saved = localStorage.getItem('jukebox_tracks');
-    if (saved) return JSON.parse(saved);
-    return Array.from({ length: 10 }, (_, i) => ({
-      id: crypto.randomUUID(),
-      rank: i + 1,
-      title: '',
-      artist: '',
-      youtubeUrl: '',
-      description: ''
-    }));
-  });
+  const emptyTracks = (): VideoTrack[] => Array.from({ length: 10 }, (_, i) => ({
+    id: crypto.randomUUID(),
+    rank: i + 1,
+    title: '',
+    artist: '',
+    youtubeUrl: '',
+    description: ''
+  }));
 
-  const [currentTrackId, setCurrentTrackId] = useState<string | null>(tracks[0].id);
+  const [tracks, setTracks] = useState<VideoTrack[]>(emptyTracks);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'' | 'saving' | 'saved' | 'error'>('');
+
+  const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [editingTrack, setEditingTrack] = useState<VideoTrack | null>(null);
   const [aiTheme, setAiTheme] = useState('Hits Italiane 2024');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const getPw = () => localStorage.getItem('jukebox_admin_pw') || '';
+
+  // Carica la classifica pubblica (la vedono tutti) e controlla se sei già admin
   useEffect(() => {
-    localStorage.setItem('jukebox_tracks', JSON.stringify(tracks));
-  }, [tracks]);
+    (async () => {
+      let list: VideoTrack[] = emptyTracks();
+      try {
+        const res = await fetch('/api/tracks');
+        const data = await res.json();
+        if (Array.isArray(data.tracks) && data.tracks.length > 0) {
+          list = Array.from({ length: 10 }, (_, i) => data.tracks[i] || { ...emptyTracks()[i] });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setTracks(list);
+      setCurrentTrackId(list[0].id);
+      setLoaded(true);
+
+      if (getPw()) {
+        try {
+          const r = await fetch('/api/tracks', { method: 'POST', headers: { 'x-admin-password': getPw() } });
+          if (r.ok) setIsAdmin(true);
+          else localStorage.removeItem('jukebox_admin_pw');
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    })();
+  }, []);
+
+  // Salvataggio automatico (solo admin, solo dopo una modifica)
+  useEffect(() => {
+    if (!isAdmin || !loaded || !dirty) return;
+    setSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/tracks', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-admin-password': getPw() },
+          body: JSON.stringify({ tracks })
+        });
+        if (!res.ok) throw new Error('save failed');
+        setSaveStatus('saved');
+        setDirty(false);
+      } catch (e) {
+        console.error(e);
+        setSaveStatus('error');
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [tracks, dirty, isAdmin, loaded]);
+
+  const changeTracks = (updater: (prev: VideoTrack[]) => VideoTrack[]) => {
+    setTracks(updater);
+    setDirty(true);
+  };
+
+  const handleLogin = async () => {
+    const pw = window.prompt('Password admin:');
+    if (!pw) return;
+    try {
+      const r = await fetch('/api/tracks', { method: 'POST', headers: { 'x-admin-password': pw } });
+      if (r.ok) {
+        localStorage.setItem('jukebox_admin_pw', pw);
+        setIsAdmin(true);
+      } else {
+        alert('Password errata.');
+      }
+    } catch (e) {
+      alert('Errore di connessione.');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('jukebox_admin_pw');
+    setIsAdmin(false);
+    setSaveStatus('');
+  };
 
   const currentTrack = tracks.find(t => t.id === currentTrackId);
 
   const handleUpdateTrack = (updated: VideoTrack) => {
-    setTracks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    changeTracks(prev => prev.map(t => t.id === updated.id ? updated : t));
     setEditingTrack(null);
   };
 
   const handleUrlChange = (newUrl: string) => {
     if (!currentTrackId) return;
     const cleanedUrl = newUrl.trim();
-    setTracks(prev => prev.map(t => 
+    changeTracks(prev => prev.map(t => 
       t.id === currentTrackId ? { ...t, youtubeUrl: cleanedUrl } : t
     ));
   };
@@ -57,7 +135,7 @@ const App: React.FC = () => {
           youtubeUrl: (s.youtubeUrl || '').trim()
         };
       });
-      setTracks(newTracks);
+      changeTracks(() => newTracks);
     } catch (err) {
       console.error(err);
       alert("Errore durante la generazione AI.");
@@ -78,6 +156,7 @@ const App: React.FC = () => {
             <h1 className="text-xl font-bold tracking-tight">Neon <span className="text-pink-500">Jukebox</span></h1>
           </div>
           
+          {isAdmin && (
           <div className="flex items-center gap-2">
             <input 
               type="text" 
@@ -101,6 +180,7 @@ const App: React.FC = () => {
               AI Classifica
             </button>
           </div>
+          )}
         </div>
       </header>
 
@@ -111,6 +191,8 @@ const App: React.FC = () => {
           <div className="sticky top-24 space-y-4">
             <VideoPlayer url={currentTrack?.youtubeUrl || null} title={currentTrack?.title || "Jukebox"} />
             
+            {isAdmin && (
+            <>
             {/* QUICK LINK INPUT */}
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-xl">
                <label className="block text-xs font-retro tracking-widest text-pink-500 uppercase mb-2">
@@ -134,6 +216,9 @@ const App: React.FC = () => {
                </div>
             </div>
 
+            </>
+            )}
+
             <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
               {currentTrack && (currentTrack.title || currentTrack.artist) ? (
                 <>
@@ -146,13 +231,13 @@ const App: React.FC = () => {
                   <p className="text-xl text-slate-400 mb-4">{currentTrack.artist || "Artista Sconosciuto"}</p>
                   <div className="h-px bg-slate-800 w-full mb-4" />
                   <p className="text-slate-300 leading-relaxed italic">
-                    {currentTrack.description || "Puoi modificare titolo e descrizione cliccando l'icona matita sulla destra."}
+                    {currentTrack.description || (isAdmin ? "Puoi modificare titolo e descrizione cliccando l'icona matita sulla destra." : "")}
                   </p>
                 </>
               ) : (
                 <div className="text-center py-12">
-                   <h2 className="text-2xl font-bold text-slate-600">Inizia la tua Top 10</h2>
-                   <p className="text-slate-500">Seleziona una posizione e incolla un link sopra, oppure usa l'AI in alto.</p>
+                   <h2 className="text-2xl font-bold text-slate-600">{isAdmin ? "Inizia la tua Top 10" : "Top 10 in arrivo"}</h2>
+                   <p className="text-slate-500">{isAdmin ? "Seleziona una posizione e incolla un link sopra, oppure usa l'AI in alto." : "La classifica non è ancora stata pubblicata."}</p>
                 </div>
               )}
             </div>
@@ -172,7 +257,7 @@ const App: React.FC = () => {
                 track={track} 
                 isActive={currentTrackId === track.id}
                 onSelect={(t) => setCurrentTrackId(t.id)}
-                onEdit={(t) => setEditingTrack(t)}
+                onEdit={isAdmin ? (t) => setEditingTrack(t) : undefined}
               />
             ))}
           </div>
@@ -240,6 +325,21 @@ const App: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-800 py-8 px-4 text-center text-slate-500 text-sm">
         <p>&copy; 2024 Neon Jukebox - Top 10 Video Ranking</p>
+        <div className="mt-3 text-xs text-slate-600 flex items-center justify-center gap-3">
+          {isAdmin ? (
+            <>
+              <span>
+                {saveStatus === 'saving' && 'Salvataggio...'}
+                {saveStatus === 'saved' && 'Salvato per tutti ✓'}
+                {saveStatus === 'error' && 'Errore nel salvataggio'}
+                {saveStatus === '' && 'Modalità admin'}
+              </span>
+              <button onClick={handleLogout} className="underline hover:text-slate-400">Esci</button>
+            </>
+          ) : (
+            <button onClick={handleLogin} className="underline hover:text-slate-400">Area admin</button>
+          )}
+        </div>
       </footer>
     </div>
   );
