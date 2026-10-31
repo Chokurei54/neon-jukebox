@@ -16,8 +16,21 @@ export default async (req: Request) => {
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Timeout Gemini")), ms)),
+      ]);
+
+    const models = ["gemini-3.6-flash", "gemini-3.5-flash"];
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const model of models) {
+      try {
+        response = await withTimeout(
+          ai.models.generateContent({
+            model,
       contents: `Genera una classifica Top 10 di canzoni per jukebox basata sul tema: "${promptTheme}". Fornisci solo dati realistici di canzoni celebri o rilevanti. Per ciascun brano includi titolo, artista, una breve curiosità/descrizione e se possibile un link di YouTube verosimile (es: https://www.youtube.com/watch?v=...).`,
       config: {
         responseMimeType: "application/json",
@@ -35,7 +48,17 @@ export default async (req: Request) => {
           },
         },
       },
-    });
+          }),
+          12000
+        );
+        break;
+      } catch (err) {
+        lastError = err;
+        console.error("ERRORE GEMINI con", model, ":", err);
+      }
+    }
+
+    if (!response) throw lastError || new Error("Gemini non risponde");
 
     let tracks = [];
     try { tracks = JSON.parse(response.text ?? "[]"); } catch {}

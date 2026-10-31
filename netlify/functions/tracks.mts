@@ -27,7 +27,7 @@ export default async (req: Request) => {
     if (req.method === "PUT") {
       if (!isAdmin) return reply({ error: "Non autorizzato" }, 401);
       const body = await req.json();
-      if (!Array.isArray(body?.tracks) || body.tracks.length > 10) {
+      if (!Array.isArray(body?.tracks) || body.tracks.length > 100) {
         return reply({ error: "Dati non validi" }, 400);
       }
       const clean = body.tracks.map((t: any, i: number) => ({

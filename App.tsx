@@ -33,7 +33,7 @@ const App: React.FC = () => {
         const res = await fetch('/api/tracks');
         const data = await res.json();
         if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-          list = Array.from({ length: 10 }, (_, i) => data.tracks[i] || { ...emptyTracks()[i] });
+          list = data.tracks.map((t: VideoTrack, i: number) => ({ ...t, rank: i + 1 }));
         }
       } catch (e) {
         console.error(e);
@@ -77,7 +77,7 @@ const App: React.FC = () => {
   }, [tracks, dirty, isAdmin, loaded]);
 
   const changeTracks = (updater: (prev: VideoTrack[]) => VideoTrack[]) => {
-    setTracks(updater);
+    setTracks(prev => updater(prev).map((t, i) => ({ ...t, rank: i + 1 })));
     setDirty(true);
   };
 
@@ -104,6 +104,39 @@ const App: React.FC = () => {
   };
 
   const currentTrack = tracks.find(t => t.id === currentTrackId);
+
+  const MAX_TRACKS = 100;
+
+  const handleAddTrack = () => {
+    if (tracks.length >= MAX_TRACKS) {
+      alert(`Puoi inserire al massimo ${MAX_TRACKS} brani.`);
+      return;
+    }
+    const newTrack: VideoTrack = {
+      id: crypto.randomUUID(),
+      rank: tracks.length + 1,
+      title: '',
+      artist: '',
+      youtubeUrl: '',
+      description: ''
+    };
+    changeTracks(prev => [...prev, newTrack]);
+    setCurrentTrackId(newTrack.id);
+    setEditingTrack(newTrack);
+  };
+
+  const handleDeleteTrack = (track: VideoTrack) => {
+    if (tracks.length <= 1) {
+      alert('Deve restare almeno un brano.');
+      return;
+    }
+    const ok = window.confirm(`Eliminare "${track.title || 'Brano vuoto'}" dalla classifica? Le posizioni sotto salgono di una.`);
+    if (!ok) return;
+    const remaining = tracks.filter(t => t.id !== track.id);
+    if (currentTrackId === track.id) setCurrentTrackId(remaining[0]?.id ?? null);
+    changeTracks(prev => prev.filter(t => t.id !== track.id));
+    setEditingTrack(null);
+  };
 
   const handleUpdateTrack = (updated: VideoTrack) => {
     changeTracks(prev => prev.map(t => t.id === updated.id ? updated : t));
@@ -185,7 +218,7 @@ const App: React.FC = () => {
                 </>
               ) : (
                 <div className="text-center py-12">
-                   <h2 className="text-2xl font-bold text-slate-600">{isAdmin ? "Inizia la tua Top 10" : "Top 10 in arrivo"}</h2>
+                   <h2 className="text-2xl font-bold text-slate-600">{isAdmin ? "Inizia la tua classifica" : "Classifica in arrivo"}</h2>
                    <p className="text-slate-500">{isAdmin ? "Seleziona una posizione e incolla un link sopra." : "La classifica non è ancora stata pubblicata."}</p>
                 </div>
               )}
@@ -193,11 +226,11 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: Top 10 List */}
+        {/* Right Side: List */}
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between mb-2 px-2">
             <h2 className="font-retro text-lg tracking-widest text-slate-400 uppercase">La Classifica</h2>
-            <span className="text-xs text-slate-500">10 Posizioni</span>
+            <span className="text-xs text-slate-500">{tracks.length} Posizioni</span>
           </div>
           <div className="space-y-3">
             {tracks.map(track => (
@@ -210,6 +243,14 @@ const App: React.FC = () => {
               />
             ))}
           </div>
+          {isAdmin && (
+            <button
+              onClick={handleAddTrack}
+              className="w-full border-2 border-dashed border-pink-500/50 hover:border-pink-500 text-pink-400 hover:text-pink-300 py-4 rounded-xl font-semibold transition-colors text-sm"
+            >
+              + Aggiungi brano
+            </button>
+          )}
         </div>
       </main>
 
@@ -267,13 +308,19 @@ const App: React.FC = () => {
                 Salva Modifiche
               </button>
             </div>
+            <button
+              onClick={() => handleDeleteTrack(editingTrack)}
+              className="w-full mt-3 text-red-400 hover:text-red-300 text-xs underline"
+            >
+              Elimina questo brano dalla classifica
+            </button>
           </div>
         </div>
       )}
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-800 py-8 px-4 text-center text-slate-500 text-sm">
-        <p>&copy; Hit Chokurei - Top 10 Video Ranking</p>
+        <p>&copy; Hit Chokurei - Video Ranking</p>
         <div className="mt-3 text-xs text-slate-600 flex items-center justify-center gap-3">
           {isAdmin ? (
             <>
